@@ -11,6 +11,6 @@ jobs:
       - name: Discord PR Notification
         uses: Ilshidur/action-discord@master
         with:
-          args: "🛎️ Nuevo PR: ${{ github.event.pull_request.title }} por ${{ github.event.pull_request.user.login }}\n<${{ github.event.pull_request.html_url }}>"
+          args: "🛎️ Nuevo PR:\n${{ github.event.pull_request.title }} por ${{ github.event.pull_request.user.login }}\n<${{ github.event.pull_request.html_url }}>"
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
