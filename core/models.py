@@ -7,15 +7,15 @@ from .utils import normalize
 # Core Character Model
 # --------------------------
 class Character(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=100)
     title = models.CharField(max_length=100, blank=True)
     bio = models.TextField(blank=True)
-    reputation = models.IntegerField(default=0)
     xp = models.IntegerField(default=0)
     energy = models.IntegerField(default=300)
     gold = models.IntegerField(default=500)
     level = models.IntegerField(default=1)
+    is_npc = models.BooleanField(default=False, db_index=True)
 
     def __str__(self):
         return self.name
@@ -126,6 +126,8 @@ class CharacterMission(models.Model):
             progress.completed = True
             progress.save()
             EventLog.log(self.character, f"{self.character.name} completed the step '{step.description}' in mission '{self.mission.name}'")
+            if step.success_response:
+                EventLog.log(self.character, step.success_response)
             if not self.progress.filter(completed=False).exists():
                 self.completed = True
                 self.save()
@@ -135,6 +137,7 @@ class MissionStep(models.Model):
     mission = models.ForeignKey(Mission, on_delete=models.CASCADE, related_name="steps")
     description = models.TextField()
     order = models.PositiveIntegerField()
+    success_response = models.TextField(blank=True, help_text="Narrative response shown when this step is completed")
 
     class Meta:
         ordering = ['order']
@@ -153,6 +156,16 @@ class Auction(models.Model):
     price = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
 
+class AuctionReputation(models.Model):
+    character = models.ForeignKey(Character, on_delete=models.CASCADE)
+    reputation = models.IntegerField(default=0)
+    total_sales = models.IntegerField(default=0)
+    total_earnings = models.IntegerField(default=0)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-reputation', '-total_earnings']
+
 # --------------------------
 # Social
 # --------------------------
@@ -162,16 +175,13 @@ class Friendship(models.Model):
     accepted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
-# --------------------------
-# Ranking
-# --------------------------
-class RankingEntry(models.Model):
-    character = models.ForeignKey(Character, on_delete=models.CASCADE)
-    reputation = models.IntegerField()
-    timestamp = models.DateTimeField(auto_now_add=True)
+class CharacterReputation(models.Model):
+    character = models.ForeignKey(Character, on_delete=models.CASCADE, related_name="npc_reputations")
+    npc = models.ForeignKey(Character, on_delete=models.CASCADE, related_name="reputation_from_players")
+    reputation = models.IntegerField(default=0)
 
     class Meta:
-        ordering = ['-reputation', '-timestamp']
+        unique_together = ('character', 'npc')
 
 # --------------------------
 # MMO Text System
@@ -180,6 +190,7 @@ class Zone(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
     is_safe_zone = models.BooleanField(default=False)
+    fallback_message = models.TextField(blank=True, help_text="Fallback response when a command fails in this zone")
 
     def __str__(self):
         return self.name
