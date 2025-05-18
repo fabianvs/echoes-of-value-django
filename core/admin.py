@@ -1,30 +1,14 @@
 from django.contrib import admin
 from .models import (
-    Character,
-    CharacterStats,
-    Rarity,
-    ItemType,
-    MissionType,
-    Item,
-    InventoryItem,
-    Recipe,
-    RecipeIngredient,
-    Ruin,
-    Component,
-    Mission,
-    CharacterMission,
-    MissionStep,
-    CharacterMissionProgress,
-    Auction,
-    Friendship,
-    RankingEntry,
-    Zone,
-    CharacterLocation,
-    EventLog,
-    TextCommand,
+    Character, CharacterStats, Rarity, ItemType, Item, InventoryItem,
+    Recipe, RecipeIngredient, Ruin, Component, RuinItemDrop,
+    MissionType, Mission, MissionStep, CharacterMission, CharacterMissionProgress,
+    Auction, AuctionReputation,
+    Friendship, CharacterReputation,
+    Zone, CharacterLocation,
+    EventLog, TextCommand
 )
 
-# Optional: inline models for convenience
 class CharacterStatsInline(admin.StackedInline):
     model = CharacterStats
     can_delete = False
@@ -33,45 +17,52 @@ class InventoryItemInline(admin.TabularInline):
     model = InventoryItem
     extra = 0
 
+@admin.register(Character)
 class CharacterAdmin(admin.ModelAdmin):
     inlines = [CharacterStatsInline, InventoryItemInline]
-    list_display = ['name', 'level', 'reputation', 'xp', 'energy', 'gold']
+    list_display = ['name', 'is_npc', 'level', 'xp', 'energy', 'gold']
+    list_filter = ['is_npc']
     search_fields = ['name', 'user__username']
 
+@admin.register(Item)
+class ItemAdmin(admin.ModelAdmin):
+    list_display = ['name', 'type', 'rarity', 'value', 'craftable']
+    list_filter = ['type', 'rarity']
+
+@admin.register(RuinItemDrop)
+class RuinItemDropAdmin(admin.ModelAdmin):
+    list_display = ['ruin', 'item', 'drop_chance']
+    list_filter = ['ruin']
+    search_fields = ['item__name']
+
+@admin.register(Mission)
 class MissionAdmin(admin.ModelAdmin):
     list_display = ['name', 'type', 'reward_gold', 'reward_xp']
     search_fields = ['name']
     list_filter = ['type']
 
-class AuctionAdmin(admin.ModelAdmin):
-    list_display = ['item', 'seller', 'price', 'created_at']
-    search_fields = ['item__name', 'seller__name']
-
+@admin.register(EventLog)
 class EventLogAdmin(admin.ModelAdmin):
     list_display = ['character', 'message', 'timestamp']
-    list_filter = ['timestamp']
     search_fields = ['character__name', 'message']
+    list_filter = ['timestamp']
 
-# Register all models
-admin.site.register(Character, CharacterAdmin)
 admin.site.register(CharacterStats)
 admin.site.register(Rarity)
 admin.site.register(ItemType)
-admin.site.register(MissionType)
-admin.site.register(Item)
 admin.site.register(InventoryItem)
 admin.site.register(Recipe)
 admin.site.register(RecipeIngredient)
 admin.site.register(Ruin)
 admin.site.register(Component)
-admin.site.register(Mission, MissionAdmin)
-admin.site.register(CharacterMission)
 admin.site.register(MissionStep)
+admin.site.register(CharacterMission)
 admin.site.register(CharacterMissionProgress)
-admin.site.register(Auction, AuctionAdmin)
+admin.site.register(Auction)
+admin.site.register(AuctionReputation)
 admin.site.register(Friendship)
-admin.site.register(RankingEntry)
+admin.site.register(CharacterReputation)
 admin.site.register(Zone)
 admin.site.register(CharacterLocation)
-admin.site.register(EventLog, EventLogAdmin)
 admin.site.register(TextCommand)
+admin.site.register(MissionType)

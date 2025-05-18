@@ -232,3 +232,18 @@ class TextCommand(models.Model):
             zone = getattr(location, "zone", None)
             fallback = zone.fallback_message if zone and zone.fallback_message else "Nothing happened... maybe try something else."
             EventLog.log(self.character, fallback)
+
+# --------------------------
+# Ruin Loot Table
+# --------------------------
+class RuinItemDrop(models.Model):
+    ruin = models.ForeignKey(Ruin, on_delete=models.CASCADE, related_name="item_drops")
+    item = models.ForeignKey(Item, on_delete=models.CASCADE)
+    drop_chance = models.FloatField(help_text="Chance from 0.0 to 1.0")
+
+    class Meta:
+        unique_together = ('ruin', 'item')
+
+    def __str__(self):
+        return f"{self.item.name} in {self.ruin.name} ({self.drop_chance * 100:.1f}% chance)"
+
