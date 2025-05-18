@@ -1,13 +1,14 @@
+import unicodedata
+import random
 from django.test import TestCase
 from django.contrib.auth.models import User
 from core.models import (
     Character, CharacterStats, Rarity, ItemType, MissionType, Item, InventoryItem,
     Recipe, RecipeIngredient, Ruin, Component,
     Mission, MissionStep, CharacterMission, CharacterMissionProgress,
-    Auction, Friendship, RankingEntry, Zone, CharacterLocation, EventLog, TextCommand
+    Auction, Friendship, Zone, CharacterLocation, EventLog, TextCommand, RuinItemDrop
 )
-import unicodedata
-
+from core.utils import get_random_loot_for_ruin
 
 def normalize(text):
     return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii").lower().strip()
@@ -75,3 +76,29 @@ class TextCommandTest(TestCase):
         TextCommand.objects.create(character=self.character, command="run away")
         progress = CharacterMissionProgress.objects.get(character_mission=self.char_mission, step=self.step)
         self.assertFalse(progress.completed)
+
+
+class RuinLootTest(TestCase):
+    def setUp(self):
+        self.ruin = Ruin.objects.create(name="Forgotten Cave", description="Dusty and old.")
+        self.common_item = Item.objects.create(name="Rusty Sword", value=10)
+        self.rare_item = Item.objects.create(name="Ancient Amulet", value=200)
+
+        RuinItemDrop.objects.create(ruin=self.ruin, item=self.common_item, drop_chance=1.0)  # Always drops
+        RuinItemDrop.objects.create(ruin=self.ruin, item=self.rare_item, drop_chance=0.0)    # Never drops
+
+    def test_loot_drops_respect_chance(self):
+        """Rusty Sword should always drop, Ancient Amulet should never drop"""
+        results = [get_random_loot_for_ruin(self.ruin) for _ in range(10)]
+
+        for loot in results:
+            self.assertIn(self.common_item, loot)
+            self.assertNotIn(self.rare_item, loot)
+
+    def test_loot_drops_with_randomized_chance(self):
+        """Test drop chance between 0.0 and 1.0 with mocked randomness (optional)"""
+        drop = RuinItemDrop.objects.get(ruin=self.ruin, item=self.rare_item)
+        drop.drop_chance = 1.0
+        drop.save()
+        loot = get_random_loot_for_ruin(self.ruin)
+        self.assertIn(self.rare_item, loot)
