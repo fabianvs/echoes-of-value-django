@@ -1,0 +1,60 @@
+name: Preview DB for PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  manage-db:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Railway CLI
+        run: npm install -g railway
+
+      - name: Set project context
+        run: railway init --project ${{ secrets.RAILWAY_PROJECT_ID }} --yes
+
+      - name: Create DB on PR opened
+        if: github.event.action != 'closed'
+        run: |
+          DB_SERVICE_NAME=db-pr-${{ github.event.number }}
+
+          # Create DB service
+          railway service:create --name=$DB_SERVICE_NAME --plugin=postgres
+
+          # Wait briefly to allow the service to initialize
+          sleep 10
+
+          # Fetch DB environment variables
+          DB_HOST=$(railway variables:get --service=$DB_SERVICE_NAME | grep DB_HOST | awk '{print $2}')
+          DB_PORT=$(railway variables:get --service=$DB_SERVICE_NAME | grep DB_PORT | awk '{print $2}')
+          DB_USER=$(railway variables:get --service=$DB_SERVICE_NAME | grep DB_USER | awk '{print $2}')
+          DB_PASSWORD=$(railway variables:get --service=$DB_SERVICE_NAME | grep DB_PASSWORD | awk '{print $2}')
+          DB_NAME=$(railway variables:get --service=$DB_SERVICE_NAME | grep DB_NAME | awk '{print $2}')
+
+          # Discover preview app service dynamically
+          APP_SERVICE_NAME=$(railway service | grep "pr-${{ github.event.number }}" | awk '{print $2}')
+
+          # Inject DB vars into app preview service
+          railway variables:set \
+            DB_HOST=$DB_HOST \
+            DB_PORT=$DB_PORT \
+            DB_USER=$DB_USER \
+            DB_PASSWORD=$DB_PASSWORD \
+            DB_NAME=$DB_NAME \
+            --service=$APP_SERVICE_NAME
+
+          # Trigger redeploy to apply new environment variables
+          railway deploy --service=$APP_SERVICE_NAME --yes
+
+      - name: Delete DB on PR closed
+        if: github.event.action == 'closed'
+        run: |
+          DB_SERVICE_NAME=db-pr-${{ github.event.number }}
+          railway service:delete --name=$DB_SERVICE_NAME --yes
