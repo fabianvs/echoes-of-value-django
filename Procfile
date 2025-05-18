@@ -1,1 +1,1 @@
-web: gunicorn yourproject.wsgi
+web: gunicorn EchoesOfValue.wsgi
